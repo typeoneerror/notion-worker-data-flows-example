@@ -66,15 +66,16 @@ worker.webhook('receiveData', {
   },
 });
 
-// Example agent tool that returns a greeting
-// Delete this when you're ready to start building your own tools.
 worker.tool('sayHello', {
   title: 'Say Hello',
   description: 'Returns a friendly greeting for the given name.',
   schema: j.object({
     name: j.string().describe('The name to greet.'),
+    exampleId: j.uuid().describe('The ID of the page to create a log for.'),
   }),
-  execute: ({ name }) => {
-    return `Hello there, ${name}!`;
+  execute: async ({ name, exampleId }, { notion }) => {
+    const title = [{ text: { content: `Hello there, ${name}` } }];
+    const page = await createLog(notion, title, exampleId);
+    return page;
   },
 });

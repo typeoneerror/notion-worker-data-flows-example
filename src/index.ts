@@ -68,7 +68,7 @@ worker.webhook('receiveData', {
 
 worker.tool('sayHello', {
   title: 'Say Hello',
-  description: 'Returns a friendly greeting for the given name.',
+  description: 'Returns a friendly greeting for the given name and creates a log.',
   schema: j.object({
     name: j.string().describe('The name to greet.'),
     exampleId: j.uuid().describe('The ID of the page to create a log for.'),

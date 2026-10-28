@@ -1,20 +1,46 @@
 import { Worker } from '@notionhq/workers';
 import { j } from '@notionhq/workers/schema-builder';
+import type { Client, CreatePageResponse } from '@notionhq/client';
+import type { RichTextItemRequest } from '@notionhq/client/build/src/api-endpoints.js';
 
 const worker = new Worker();
 export default worker;
+
+async function createLog(
+  notion: Client,
+  title: RichTextItemRequest[],
+  exampleId: string
+): Promise<CreatePageResponse> {
+  // Use the data source by ID via an environment variable
+  const dataSourceId = process.env.DATA_SOURCE_ID;
+  if (!dataSourceId) {
+    throw new Error('You must define DATA_SOURCE_ID');
+  }
+
+  // Logs are sent to Notion's tui and gui as we'll see
+  console.log(`Creating a page in ${dataSourceId}`);
+
+  // Use the Notion API to create a page in the specified data source
+  // We "await" here because this is an asynchronous request.
+  return await notion.pages.create({
+    parent: { type: 'data_source_id', data_source_id: dataSourceId },
+    template: {
+      type: 'default',
+    },
+    properties: {
+      Name: {
+        title,
+      },
+      Example: { relation: [{ id: exampleId }] },
+    },
+  });
+}
 
 worker.webhook('receiveData', {
   title: 'Receive Data',
   description: 'Receive data from Notion or elsewhere',
   execute: async (events, { notion }) => {
     for (const event of events) {
-      // Use the data source by ID via an environment variable
-      const dataSourceId = process.env.DATA_SOURCE_ID;
-      if (!dataSourceId) {
-        throw new Error('You must define DATA_SOURCE_ID');
-      }
-
       // The data sent via the webhook is in the body of the event
       const body = event.body;
       // Get the data sent in the event body
@@ -27,26 +53,12 @@ worker.webhook('receiveData', {
         throw new Error('Webhook body must include a page identifier as "id"');
       }
 
-      // Logs are sent to Notion's tui and gui as we'll see
-      console.log(`Creating a page in ${dataSourceId}`);
+      const title: RichTextItemRequest[] = [
+        { text: { content: 'Log ' } },
+        { mention: { date: { start: new Date().toISOString() } } },
+      ];
 
-      // Use the Notion API to create a page in the specified data source
-      // We "await" here because this is an asynchronous request.
-      const page = await notion.pages.create({
-        parent: { type: 'data_source_id', data_source_id: dataSourceId },
-        template: {
-          type: 'default',
-        },
-        properties: {
-          Name: {
-            title: [
-              { text: { content: 'Log ' } },
-              { mention: { date: { start: new Date().toISOString() } } },
-            ],
-          },
-          Example: { relation: [{ id: exampleId }] },
-        },
-      });
+      const page = await createLog(notion, title, exampleId);
 
       // We'll be able to see the created page or do something else with it now...
       console.log(page);
